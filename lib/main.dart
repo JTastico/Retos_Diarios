@@ -6,6 +6,7 @@ import 'controllers/challenge_controller.dart';
 import 'views/home_screen.dart';
 import 'views/badges_screen.dart';
 import 'views/community_screen.dart';
+import 'views/profile_screen.dart'; // Importamos la nueva pantalla
 
 void main() {
   runApp(
@@ -26,10 +27,12 @@ class RetosDiariosApp extends StatefulWidget {
 class _RetosDiariosAppState extends State<RetosDiariosApp> {
   int _selectedIndex = 0;
 
+  // Añadimos la ProfileScreen a la lista de widgets
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     BadgesScreen(),
     CommunityScreen(),
+    ProfileScreen(), // Nueva pantalla
   ];
 
   void _onItemTapped(int index) {
@@ -52,6 +55,9 @@ class _RetosDiariosAppState extends State<RetosDiariosApp> {
           child: _widgetOptions.elementAt(_selectedIndex),
         ),
         bottomNavigationBar: BottomNavigationBar(
+          // Importante: para más de 3 items, el tipo cambia a shifting por defecto
+          // Lo forzamos a 'fixed' para mantener un diseño consistente.
+          type: BottomNavigationBarType.fixed, 
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Icon(Icons.home),
@@ -64,6 +70,10 @@ class _RetosDiariosAppState extends State<RetosDiariosApp> {
             BottomNavigationBarItem(
               icon: Icon(Icons.people),
               label: 'Comunidad',
+            ),
+             BottomNavigationBarItem( // Nuevo item de navegación
+              icon: Icon(Icons.person),
+              label: 'Perfil',
             ),
           ],
           currentIndex: _selectedIndex,

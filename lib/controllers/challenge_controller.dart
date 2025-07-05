@@ -1,6 +1,5 @@
 // lib/controllers/challenge_controller.dart
 
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
 import '../models/challenge.dart';
@@ -33,9 +32,10 @@ class ChallengeController with ChangeNotifier {
     notifyListeners();
 
     _userProgress = await _storageService.loadUserProgress();
-    _dailyChallenge = await _challengeService.getDailyChallenge();
+    
+    // Pasamos las preferencias del usuario al servicio
+    _dailyChallenge = await _challengeService.getDailyChallenge(_userProgress!.preferredChallengeTypes);
 
-    // Verificar si el reto de hoy ya fue completado
     if (_dailyChallenge != null) {
       _isChallengeCompletedToday = _userProgress!.completedChallengeIds.contains(_dailyChallenge!.id);
     }
@@ -43,34 +43,36 @@ class ChallengeController with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+  
+  Future<void> updatePreferredTypes(Set<ChallengeType> newTypes) async {
+      if (_userProgress == null) return;
+      _userProgress = UserProgress(
+        completedChallengeIds: _userProgress!.completedChallengeIds,
+        unlockedBadgeIds: _userProgress!.unlockedBadgeIds,
+        preferredChallengeTypes: newTypes,
+      );
+      await _storageService.saveUserProgress(_userProgress!);
+      notifyListeners();
+  }
 
   Future<void> completeChallenge() async {
     if (_dailyChallenge == null || _userProgress == null || _isChallengeCompletedToday) return;
 
-    // Actualizar estado local
     _userProgress!.completedChallengeIds.add(_dailyChallenge!.id);
     _isChallengeCompletedToday = true;
     
-    // Lógica para desbloquear insignias
     _checkAndUnlockBadges();
 
-    // Guardar progreso
     await _storageService.saveUserProgress(_userProgress!);
     
-    // Activar animación
     confettiController.play();
-
-    // Notificar a la UI
     notifyListeners();
   }
   
   void _checkAndUnlockBadges() {
-    // Insignia: Primer reto completado
     if (_userProgress!.completedChallengeIds.length == 1) {
       _userProgress!.unlockedBadgeIds.add('first_challenge');
     }
-
-    // Insignia: Racha de 5 días (lógica simplificada)
     if (_userProgress!.completedChallengeIds.length >= 5) {
        _userProgress!.unlockedBadgeIds.add('five_day_streak');
     }

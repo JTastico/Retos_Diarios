@@ -1,6 +1,5 @@
 // lib/views/home_screen.dart
 
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:confetti/confetti.dart';
@@ -11,6 +10,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Escuchamos el controlador usando Provider
     final controller = Provider.of<ChallengeController>(context);
 
     return Scaffold(
@@ -18,15 +18,42 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Reto del Día 💪'),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
+        actions: [
+          // --- INICIO DEL CÓDIGO AÑADIDO ---
+          // Botón para refrescar y obtener un nuevo reto
+          // Se deshabilita mientras está cargando para evitar múltiples peticiones
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: controller.isLoading
+                ? null // Si está cargando, el botón no hace nada
+                : () {
+                    // Muestra una notificación temporal
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Buscando un nuevo reto...'),
+                        backgroundColor: Colors.blueAccent,
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                    // Llama a la función para cargar un nuevo reto
+                    controller.loadInitialData();
+                  },
+            tooltip: 'Obtener otro reto',
+          ),
+          // --- FIN DEL CÓDIGO AÑADIDO ---
+        ],
       ),
       body: Stack(
         alignment: Alignment.topCenter,
         children: [
           Center(
+            // Si está cargando, muestra una rueda de progreso
             child: controller.isLoading
                 ? const CircularProgressIndicator()
+                // Si no hay reto (por un error), muestra un mensaje
                 : controller.dailyChallenge == null
                     ? const Text('No se pudo cargar el reto.')
+                    // Si todo está bien, muestra la tarjeta del reto
                     : Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -65,9 +92,10 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 30),
+                            // Botón para marcar el reto como completado
                             ElevatedButton.icon(
                               onPressed: controller.isChallengeCompletedToday
-                                  ? null
+                                  ? null // Deshabilitado si ya se completó
                                   : () => controller.completeChallenge(),
                               icon: Icon(controller.isChallengeCompletedToday
                                   ? Icons.check_circle
@@ -87,7 +115,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
           ),
-          // Widget de Confetti
+          // Widget para la animación de confeti
           ConfettiWidget(
             confettiController: controller.confettiController,
             blastDirectionality: BlastDirectionality.explosive,
