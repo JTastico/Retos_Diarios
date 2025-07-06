@@ -2,7 +2,6 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_progress.dart';
-import '../models/challenge.dart';
 
 class StorageService {
   static const _completedKey = 'completed_challenges';
@@ -13,32 +12,27 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_completedKey, progress.completedChallengeIds.toList());
     await prefs.setStringList(_badgesKey, progress.unlockedBadgeIds.toList());
-    
-    // Guardar las preferencias como una lista de strings
-    final prefStrings = progress.preferredChallengeTypes.map((e) => e.name).toList();
-    await prefs.setStringList(_prefsKey, prefStrings);
+    await prefs.setStringList(_prefsKey, progress.preferredChallengeTypes.toList());
   }
 
   Future<UserProgress> loadUserProgress() async {
     final prefs = await SharedPreferences.getInstance();
     final completed = prefs.getStringList(_completedKey) ?? [];
     final badges = prefs.getStringList(_badgesKey) ?? [];
-    final prefStrings = prefs.getStringList(_prefsKey) ?? [];
+    final preferences = prefs.getStringList(_prefsKey) ?? [];
     
-    // Cargar las preferencias y convertirlas de string a ChallengeType
-    final preferences = prefStrings.map((name) {
-      return ChallengeType.values.firstWhere((e) => e.name == name, orElse: () => ChallengeType.fitness);
-    }).toSet();
+    // CORRECCIÓN CLAVE:
+    // El código anterior convertía los strings a 'ChallengeType'.
+    // Ahora, simplemente usamos la lista de strings directamente.
     
-    // Si no hay preferencias guardadas, se añade una por defecto.
     if (preferences.isEmpty) {
-        preferences.add(ChallengeType.fitness);
+        preferences.add('fitness');
     }
 
     return UserProgress(
       completedChallengeIds: completed.toSet(),
       unlockedBadgeIds: badges.toSet(),
-      preferredChallengeTypes: preferences,
+      preferredChallengeTypes: preferences.toSet(), // Esto ahora crea correctamente un Set<String>
     );
   }
 }

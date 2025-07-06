@@ -1,18 +1,17 @@
 // lib/models/challenge.dart
 
-enum ChallengeType { fitness, reading, mindfulness }
+// ASEGÚRATE DE QUE EL ENUM 'ChallengeType' YA NO EXISTA EN ESTE ARCHIVO.
 
 class Challenge {
   final String id;
   final String title;
   final String description;
-  final ChallengeType type;
+  final String type; // Esto ahora es un String.
   final DateTime date;
-  
-  // --- CAMPOS AÑADIDOS ---
+
   final bool isTimerBased;
-  final int durationInMinutes; // Duración de una sesión del temporizador
-  final int intervalInMinutes; // Cada cuánto se repite (0 si no se repite)
+  final int durationInMinutes;
+  final int intervalInMinutes;
 
   Challenge({
     required this.id,
@@ -25,13 +24,12 @@ class Challenge {
     this.intervalInMinutes = 0,
   });
 
-  // Fábrica actualizada para manejar los nuevos campos
   factory Challenge.fromJson(Map<String, dynamic> json) {
     return Challenge(
       id: json['id'],
       title: json['title'],
       description: json['description'],
-      type: ChallengeType.values.firstWhere((e) => e.name == json['type']),
+      type: json['type'],
       date: DateTime.parse(json['date']),
       isTimerBased: json['isTimerBased'] ?? false,
       durationInMinutes: json['durationInMinutes'] ?? 0,

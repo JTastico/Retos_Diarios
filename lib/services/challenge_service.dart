@@ -8,10 +8,10 @@ import '../config.dart';
 class ChallengeService {
   final _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: geminiApiKey);
 
-  Future<Challenge> getDailyChallenge(Set<ChallengeType> preferredTypes) async {
+  Future<Challenge> getDailyChallenge(Set<String> preferredTypes) async {
     final today = DateTime.now();
     try {
-      final preferredTypesString = preferredTypes.map((e) => e.name).join(', ');
+      final preferredTypesString = preferredTypes.join(', ');
       
       final prompt = """
       Genera un único reto creativo y motivador para un usuario interesado en: $preferredTypesString.
@@ -19,7 +19,7 @@ class ChallengeService {
       Responde EXCLUSIVAMENTE como un objeto JSON válido con las siguientes claves:
       - "title": string (título corto con emoji).
       - "description": string (descripción de 1-2 frases).
-      - "type": string (una de las siguientes: 'fitness', 'reading', 'mindfulness').
+      - "type": string (una de las categorías proporcionadas: $preferredTypesString).
       - "isTimerBased": boolean (true si el reto requiere un temporizador, de lo contrario false).
       - "durationInMinutes": int (si isTimerBased es true, la duración en minutos del temporizador. Si no, 0).
       - "intervalInMinutes": int (si el reto se repite, el intervalo en minutos. Si no se repite, 0).
@@ -65,7 +65,6 @@ class ChallengeService {
       return Challenge.fromJson({
         ...jsonResponse,
         "id": "challenge_${today.year}_${today.month}_${today.day}",
-        // --- LÍNEA CORREGIDA ---
         "date": today.toIso8601String(), 
       });
 
@@ -75,7 +74,7 @@ class ChallengeService {
     }
   }
   
-  Challenge _getFallbackChallenge(DateTime date, ChallengeType type) {
+  Challenge _getFallbackChallenge(DateTime date, String type) {
     return Challenge(
       id: "fallback_${date.year}_${date.month}_${date.day}",
       title: "Reto de Respaldo ⚙️",

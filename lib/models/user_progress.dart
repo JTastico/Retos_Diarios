@@ -1,11 +1,9 @@
 // lib/models/user_progress.dart
 
-import 'challenge.dart';
-
 class UserProgress {
   final Set<String> completedChallengeIds;
   final Set<String> unlockedBadgeIds;
-  final Set<ChallengeType> preferredChallengeTypes;
+  final Set<String> preferredChallengeTypes; // CAMBIADO: de ChallengeType a String
 
   UserProgress({
     required this.completedChallengeIds,
