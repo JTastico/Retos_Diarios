@@ -1,110 +1,114 @@
-import 'dart:async';
-import 'dart:ui';
-import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// lib/main.dart
 
-// Canal de notificación para el servicio en primer plano
-const String notificationChannelId = 'my_foreground';
-const int notificationId = 888;
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'controllers/challenge_controller.dart';
+import 'services/background_timer_service.dart'; // Importar servicio
+import 'views/home_screen.dart';
+import 'views/badges_screen.dart';
+import 'views/community_screen.dart';
+import 'views/profile_screen.dart';
+
+// Workaround para errores de certificado en desarrollo (opcional)
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
 
 Future<void> main() async {
+  // Asegurarse de que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeService();
-  runApp(const MyApp());
-}
 
-//--- FUNCIÓN DE INICIALIZACIÓN DEL SERVICIO ---
-Future<void> initializeService() async {
-  final service = FlutterBackgroundService();
+  // Pedir permiso de notificaciones
+  await Permission.notification.isDenied.then((value) {
+    if (value) {
+      Permission.notification.request();
+    }
+  });
 
-  // Configura el canal de notificación para Android
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    notificationChannelId,
-    'RETO ACTIVO', // Título del canal
-    description: 'Este canal se usa para mostrar el estado del reto activo.',
-    importance: Importance.low, // Importancia baja para que no sea intrusiva
-  );
-
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
-
-  await service.configure(
-    androidConfiguration: AndroidConfiguration(
-      onStart: onStart,
-      autoStart: false, // Iniciaremos el servicio manualmente con el botón
-      isForegroundMode: true,
-      notificationChannelId: notificationChannelId,
-      initialNotificationTitle: 'CodeLink Reto',
-      initialNotificationContent: 'Esperando para iniciar...',
-      foregroundServiceNotificationId: notificationId,
-    ),
-    iosConfiguration: IosConfiguration(
-      autoStart: false,
-      onForeground: onStart,
+  // Inicializar el servicio en segundo plano
+  await BackgroundTimerService().initializeService();
+  
+  HttpOverrides.global = MyHttpOverrides();
+  
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ChallengeController(),
+      child: const RetosDiariosApp(),
     ),
   );
 }
 
-//--- PUNTO DE ENTRADA PARA EL SERVICIO EN SEGUNDO PLANO ---
-// ESTA FUNCIÓN CORRE EN SU PROPIO ISOLATE (SEGUNDO PLANO)
-@pragma('vm:entry-point')
-void onStart(ServiceInstance service) async {
-  // DartPluginRegistrant.ensureInitialized() se remueve de aquí porque causa el error.
-  
-  DateTime? startTime;
-  
-  // Escucha eventos que vienen desde la UI
-  service.on('startChallenge').listen((event) {
-    startTime = DateTime.now();
-    
-    // Inicia un temporizador que se ejecuta cada segundo
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (startTime == null) {
-        timer.cancel();
-        return;
-      }
+// ... el resto del archivo `main.dart` no cambia ...
 
-      final duration = DateTime.now().difference(startTime!);
-      
-      // Formatea la duración en hh:mm:ss
-      String twoDigits(int n) => n.toString().padLeft(2, '0');
-      final hours = twoDigits(duration.inHours);
-      final minutes = twoDigits(duration.inMinutes.remainder(60));
-      final seconds = twoDigits(duration.inSeconds.remainder(60));
-      final
- 
-formattedTime = "$hours:$minutes:$seconds";
-      
-      // Envía la actualización del tiempo a la UI
-      service.invoke(
-        'update',
-        {
-          "time": formattedTime,
-        },
-      );
+class RetosDiariosApp extends StatefulWidget {
+  const RetosDiariosApp({super.key});
+
+  @override
+  State<RetosDiariosApp> createState() => _RetosDiariosAppState();
+}
+
+class _RetosDiariosAppState extends State<RetosDiariosApp> {
+  int _selectedIndex = 0;
+
+  static const List<Widget> _widgetOptions = <Widget>[
+    HomeScreen(),
+    BadgesScreen(),
+    CommunityScreen(),
+    ProfileScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
     });
-  });
-
-  service.on('stopChallenge').listen((event) {
-    startTime = null; // Detiene el temporizador
-    service.stopSelf();
-  });
-}
-
-// El resto de tu app
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // ... tu home page
+      title: 'Retos Diarios',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
+      ),
+      home: Scaffold(
+        body: Center(
+          child: _widgetOptions.elementAt(_selectedIndex),
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Reto',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.military_tech),
+              label: 'Insignias',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people),
+              label: 'Comunidad',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Perfil',
+            ),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: Colors.indigo,
+          onTap: _onItemTapped,
+        ),
+      ),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
