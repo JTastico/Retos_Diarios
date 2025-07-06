@@ -9,7 +9,6 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos 'Consumer' para acceder al controlador
     return Consumer<ChallengeController>(
       builder: (context, controller, child) {
         final interests = controller.userProgress?.preferredChallengeTypes.toList() ?? [];
@@ -30,7 +29,6 @@ class ProfileScreen extends StatelessWidget {
           body: controller.isLoading
               ? const Center(child: CircularProgressIndicator())
               : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -61,10 +59,7 @@ class ProfileScreen extends StatelessWidget {
                                       controller.deleteInterest(interest);
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Debes tener al menos un interés.'),
-                                          backgroundColor: Colors.red,
-                                        ),
+                                        const SnackBar(content: Text('Debes tener al menos un interés.')),
                                       );
                                     }
                                   },
@@ -75,28 +70,15 @@ class ProfileScreen extends StatelessWidget {
                         },
                       ),
                     ),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.sync),
-                          label: const Text('Guardar y Actualizar'),
-                          onPressed: () {
-                            // --- ESTA ES LA LÍNEA CORREGIDA ---
-                            // Se llama a 'loadUserData' que ahora existe en el controlador.
-                            controller.loadUserData(); 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Intereses actualizados. Ve a la pestaña Reto para generar uno nuevo.'),
-                                backgroundColor: Colors.green,
-                                duration: Duration(seconds: 3),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                        ),
+                    // --- BOTÓN DE CERRAR SESIÓN ---
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.logout, color: Colors.red),
+                        label: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red)),
+                        onPressed: () async {
+                           await controller.signOut();
+                        },
                       ),
                     ),
                   ],
@@ -107,6 +89,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _showInterestDialog(BuildContext context, ChallengeController controller, {String? existingInterest}) {
+    // ... (El resto de este archivo no cambia)
     final textController = TextEditingController(text: existingInterest);
     final isEditing = existingInterest != null;
 

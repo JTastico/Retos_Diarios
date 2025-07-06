@@ -4,6 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/challenge.dart';
 import '../models/user_progress.dart';
 import '../services/challenge_service.dart';
@@ -13,13 +15,13 @@ class ChallengeController with ChangeNotifier {
   final ChallengeService _challengeService = ChallengeService();
   final StorageService _storageService = StorageService();
   final _backgroundService = FlutterBackgroundService();
+  final _supabase = Supabase.instance.client;
 
   Challenge? _dailyChallenge;
   UserProgress? _userProgress;
   bool _isLoading = true;
   bool _isChallengeCompletedToday = false;
   late ConfettiController confettiController;
-
   bool _isTimerRunning = false;
   int _timerRemainingSeconds = 0;
 
@@ -30,56 +32,99 @@ class ChallengeController with ChangeNotifier {
   bool get isTimerRunning => _isTimerRunning;
   int get timerRemainingSeconds => _timerRemainingSeconds;
 
+
   ChallengeController() {
     confettiController = ConfettiController(duration: const Duration(seconds: 1));
-    // MODIFICADO: Solo carga los datos del usuario, no el reto.
-    loadUserData(); 
+    loadUserData();
     _backgroundService.on('update').listen(_onTimerUpdate);
     _backgroundService.on('timer_finished').listen(_onTimerFinished);
+
+    _supabase.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.initialSession) {
+        loadUserData();
+      }
+    });
   }
 
-  // --- MÉTODOS MODIFICADOS Y NUEVOS ---
-
-  // 1. Carga solo los datos del usuario, sin buscar un reto.
-  Future<void> loadUserData() async {
-    _isLoading = true;
-    _dailyChallenge = null; // Resetea el reto al cargar
-    notifyListeners();
-
-    _userProgress = await _storageService.loadUserProgress();
-    
-    final isRunning = await _backgroundService.isRunning();
-    _isTimerRunning = isRunning;
-    
-    _isLoading = false;
-    notifyListeners();
+  // --- MÉTODOS DE AUTENTICACIÓN ---
+  Future<void> signIn(String email, String password) async {
+    await _supabase.auth.signInWithPassword(email: email, password: password);
   }
-  
-  // 2. NUEVO: Busca un reto para un interés específico.
-  Future<void> getChallengeForType(String interest) async {
-    if (_userProgress == null) return;
-    
-    _isLoading = true;
-    notifyListeners();
 
-    // Llama al servicio con un Set que contiene solo el interés seleccionado.
-    _dailyChallenge = await _challengeService.getDailyChallenge({interest});
+  Future<void> signUp(String email, String password) async {
+    await _supabase.auth.signUp(email: email, password: password);
+  }
 
-    if (_dailyChallenge != null) {
-      _isChallengeCompletedToday = _userProgress!.completedChallengeIds.contains(_dailyChallenge!.id);
+  Future<void> signOut() async {
+    // Primero, cierra la sesión de Google si está activa
+    if (await GoogleSignIn().isSignedIn()) {
+      await GoogleSignIn().signOut();
     }
-
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  // 3. NUEVO: Limpia el reto actual para permitir una nueva selección.
-  void clearChallenge() {
+    // Luego, cierra la sesión de Supabase
+    await _supabase.auth.signOut();
+    _userProgress = null;
     _dailyChallenge = null;
     notifyListeners();
   }
 
-  // --- MÉTODOS EXISTENTES (sin cambios en su lógica interna) ---
+  Future<void> signInWithGoogle() async {
+    const webClientId = 'TU_ID_DE_CLIENTE_WEB.apps.googleusercontent.com';
+
+    final GoogleSignIn googleSignIn = GoogleSignIn(clientId: webClientId);
+    final googleUser = await googleSignIn.signIn();
+    final googleAuth = await googleUser!.authentication;
+    final accessToken = googleAuth.accessToken;
+    final idToken = googleAuth.idToken;
+
+    if (accessToken == null) {
+      throw 'No se pudo obtener el Access Token de Google.';
+    }
+    if (idToken == null) {
+      throw 'No se pudo obtener el ID Token de Google.';
+    }
+
+    await _supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
+    );
+  }
+
+
+  // --- RESTO DE MÉTODOS DEL CONTROLADOR ---
+  Future<void> loadUserData() async {
+    if (_supabase.auth.currentUser == null) {
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+    _isLoading = true;
+    _dailyChallenge = null;
+    notifyListeners();
+    _userProgress = await _storageService.loadUserProgress();
+    final isRunning = await _backgroundService.isRunning();
+    _isTimerRunning = isRunning;
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> getChallengeForType(String interest) async {
+    if (_userProgress == null) return;
+    _isLoading = true;
+    notifyListeners();
+    _dailyChallenge = await _challengeService.getDailyChallenge({interest});
+    if (_dailyChallenge != null) {
+      _isChallengeCompletedToday = _userProgress!.completedChallengeIds.contains(_dailyChallenge!.id);
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void clearChallenge() {
+    _dailyChallenge = null;
+    notifyListeners();
+  }
 
   void _onTimerUpdate(Map<String, dynamic>? event) {
     if (event != null) {
@@ -142,6 +187,7 @@ class ChallengeController with ChangeNotifier {
 
   Future<void> deleteInterest(String interest) async {
     if (_userProgress == null || _userProgress!.preferredChallengeTypes.length <= 1) return;
+    // --- ESTA ES LA LÍNEA CORREGIDA ---
     final newPrefs = Set<String>.from(_userProgress!.preferredChallengeTypes)..remove(interest);
     await updatePreferredTypes(newPrefs);
   }
@@ -155,7 +201,7 @@ class ChallengeController with ChangeNotifier {
     confettiController.play();
     notifyListeners();
   }
-  
+
   void _checkAndUnlockBadges() {
     if (_userProgress!.completedChallengeIds.length == 1) {
       _userProgress!.unlockedBadgeIds.add('first_challenge');
