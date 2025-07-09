@@ -23,6 +23,9 @@ dependencies:
   permission_handler: ^12.0.1
   supabase_flutter: ^2.9.1
   google_sign_in: ^6.2.1
+  simple_animations: ^5.0.0+2
+  flutter_vector_icons: ^2.0.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -35,3 +38,9 @@ flutter:
   # # Para agregar assets a tu aplicación, agrega una sección de assets como esta:
   assets:
     - assets/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/chronix_logo.jpeg" # Asegúrate que esta ruta sea correcta
+  remove_alpha_ios: true

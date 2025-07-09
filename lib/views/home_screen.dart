@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:confetti/confetti.dart';
 import '../controllers/challenge_controller.dart';
 
-// --- NUEVO: Stateful widget para manejar la selección del interés ---
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,24 +17,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos 'watch' para que la UI se reconstruya con los cambios del controller
     final controller = context.watch<ChallengeController>();
     final interests = controller.userProgress?.preferredChallengeTypes.toList() ?? [];
 
-    // Sincroniza la lista de intereses con el dropdown
     if (_selectedInterest != null && !interests.contains(_selectedInterest)) {
       _selectedInterest = null;
     }
 
     return Scaffold(
       appBar: AppBar(
+        // --- ESTILO MODIFICADO ---
         title: const Text('Reto del Día 💪'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            // El botón de refrescar ahora limpia la selección para elegir de nuevo
             onPressed: controller.isLoading || controller.isTimerRunning
                 ? null
                 : () {
@@ -53,29 +51,30 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Center(
             child: controller.isLoading
-                ? const CircularProgressIndicator()
-                // --- LÓGICA DE VISTA MODIFICADA ---
+                ? const CircularProgressIndicator(color: Colors.amber)
                 : controller.dailyChallenge == null
-                    ? _buildInterestSelector(context, controller, interests) // Muestra el selector
-                    : _buildChallengeCard(context, controller), // Muestra el reto
+                    ? _buildInterestSelector(context, controller, interests)
+                    : _buildChallengeCard(context, controller),
           ),
-          ConfettiWidget(
-            confettiController: controller.confettiController,
-            blastDirectionality: BlastDirectionality.explosive,
-            shouldLoop: false,
-            numberOfParticles: 20,
-            gravity: 0.1,
-            emissionFrequency: 0.05,
-            colors: const [
-              Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple
-            ],
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: controller.confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              numberOfParticles: 30,
+              gravity: 0.2,
+              emissionFrequency: 0.05,
+              colors: const [
+                Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- NUEVO WIDGET: Selector de intereses ---
   Widget _buildInterestSelector(BuildContext context, ChallengeController controller, List<String> interests) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -84,38 +83,49 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(
             'Elige una categoría para tu reto:',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          // Dropdown para seleccionar el interés
           if (interests.isNotEmpty)
-            DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedInterest,
-              hint: const Text('Seleccionar interés'),
-              items: interests.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _selectedInterest = newValue;
-                });
-              },
+            // --- ESTILO MODIFICADO ---
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedInterest,
+                hint: const Text('Seleccionar interés'),
+                dropdownColor: const Color(0xFF3a2d5c),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                underline: const SizedBox(),
+                items: interests.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    _selectedInterest = newValue;
+                  });
+                },
+              ),
             ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             icon: const Icon(Icons.psychology),
             label: const Text('Generar Reto'),
             onPressed: _selectedInterest == null
-                ? null // Deshabilitado si no hay interés seleccionado
+                ? null
                 : () => controller.getChallengeForType(_selectedInterest!),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              textStyle: const TextStyle(fontSize: 18),
+              textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -123,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- WIDGET EXISTENTE: Tarjeta del reto ---
   Widget _buildChallengeCard(BuildContext context, ChallengeController controller) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -136,8 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 20),
           Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            // El estilo de la Card se toma del tema global en main.dart
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -150,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   Text(
                     controller.dailyChallenge!.description,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.8)),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -164,7 +172,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget para los botones de acción (completar, iniciar, etc.)
   Widget _buildActionButton(BuildContext context, ChallengeController controller) {
     if (controller.isChallengeCompletedToday) {
       return ElevatedButton.icon(
@@ -172,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.check_circle),
         label: const Text('¡Reto Completado!'),
         style: ElevatedButton.styleFrom(
-          disabledBackgroundColor: Colors.green,
+          disabledBackgroundColor: Colors.green.withOpacity(0.8),
           disabledForegroundColor: Colors.white,
         ),
       );
@@ -185,17 +192,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
       return Column(
         children: [
-          Text(timeString, style: Theme.of(context).textTheme.headlineMedium),
+          Text(timeString, style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           LinearProgressIndicator(
             value: controller.timerRemainingSeconds / (controller.dailyChallenge!.durationInMinutes * 60),
+            backgroundColor: Colors.white.withOpacity(0.3),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
           ),
           const SizedBox(height: 10),
           ElevatedButton.icon(
             onPressed: () => controller.stopChallengeTimer(),
             icon: const Icon(Icons.cancel),
             label: const Text('Cancelar'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
           ),
         ],
       );
@@ -210,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.blueAccent,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-          textStyle: const TextStyle(fontSize: 18),
+          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       );
     } else {
@@ -222,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.green,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-          textStyle: const TextStyle(fontSize: 18),
+          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       );
     }
