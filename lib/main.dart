@@ -4,15 +4,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Importar Supabase
-import 'config.dart'; // Importar config
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config.dart';
 import 'controllers/challenge_controller.dart';
 import 'services/background_timer_service.dart';
-import 'views/auth_screen.dart'; // Importar la nueva pantalla de login
+import 'views/auth_screen.dart';
 import 'views/home_screen.dart';
 import 'views/badges_screen.dart';
 import 'views/community_screen.dart';
 import 'views/profile_screen.dart';
+import 'views/splash_screen.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -25,30 +26,57 @@ class MyHttpOverrides extends HttpOverrides {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = MyHttpOverrides();
+  
+  // Mostrar splash screen inmediatamente
+  runApp(
+    MaterialApp(
+      home: Scaffold(
+        body: SplashApp(),
+      ),
+    ),
+  );
 
-  // --- NUEVO: Inicializar Supabase ---
+  // Inicializar todo en segundo plano
+  await _initializeApp();
+
+  // Lanzar la app principal cuando todo esté listo
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ChallengeController(),
+      child: const MainApp(),
+    ),
+  );
+}
+
+Future<void> _initializeApp() async {
+  // Inicializar Supabase
   await Supabase.initialize(
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
 
+  // Manejar permisos
   await Permission.notification.isDenied.then((value) {
     if (value) {
       Permission.notification.request();
     }
   });
 
+  // Inicializar servicios en segundo plano
   await BackgroundTimerService().initializeService();
-  
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => ChallengeController(),
-      child: const MainApp(), // Cambiado a un widget principal
-    ),
-  );
 }
 
-// --- NUEVO: Widget principal que envuelve toda la app ---
+// Splash Screen temporal (se muestra mientras se inicializa)
+class SplashApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SplashScreen(
+      onInitializationComplete: () {}, // No se usa aquí
+    );
+  }
+}
+
+// App principal
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
@@ -61,14 +89,13 @@ class MainApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         useMaterial3: true,
       ),
-      // --- NUEVO: AuthGate para decidir qué pantalla mostrar ---
       home: const AuthGate(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-// --- NUEVO: Widget que gestiona el estado de la sesión ---
+// Gestor de autenticación
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -77,17 +104,18 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        // Si hay una sesión activa, muestra la app principal
+        // Si está autenticado, mostrar la app principal
         if (snapshot.hasData && snapshot.data!.session != null) {
           return const RetosDiariosApp();
         }
-        // Si no, muestra la pantalla de login
+        // Si no, mostrar login
         return const AuthScreen();
       },
     );
   }
 }
 
+// App principal con navegación
 class RetosDiariosApp extends StatefulWidget {
   const RetosDiariosApp({super.key});
 
