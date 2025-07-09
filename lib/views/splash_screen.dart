@@ -1,3 +1,5 @@
+// lib/views/splash_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'dart:math';
@@ -92,12 +94,15 @@ class SplashScreenState extends State<SplashScreen>
       ),
     )..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
-          setState(() {
-            _loadingComplete = true;
-          });
-          _textController.forward().then((_) {
-            widget.onInitializationComplete();
-          });
+          // Asegurarse de que el widget todavía existe antes de actualizar el estado
+          if (mounted) {
+            setState(() {
+              _loadingComplete = true;
+            });
+            _textController.forward().then((_) {
+              widget.onInitializationComplete();
+            });
+          }
         }
       });
 
@@ -117,7 +122,11 @@ class SplashScreenState extends State<SplashScreen>
 
     // Iniciar animación de progreso
     Future.delayed(const Duration(milliseconds: 500), () {
-      _progressController.forward();
+      // --- CAMBIO IMPORTANTE AQUÍ ---
+      // Solo iniciar la animación si el widget todavía está "montado"
+      if (mounted) {
+        _progressController.forward();
+      }
     });
   }
 

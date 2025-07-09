@@ -4,7 +4,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+// Ya no se necesita GoogleSignIn para el login, lo puedes quitar si no lo usas en otro lado.
+// import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/challenge.dart';
 import '../models/user_progress.dart';
@@ -57,37 +58,23 @@ class ChallengeController with ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    // Primero, cierra la sesión de Google si está activa
-    if (await GoogleSignIn().isSignedIn()) {
-      await GoogleSignIn().signOut();
-    }
-    // Luego, cierra la sesión de Supabase
+    // El signOut de Supabase ahora se encarga de todo
     await _supabase.auth.signOut();
     _userProgress = null;
     _dailyChallenge = null;
     notifyListeners();
   }
 
+  // --- MÉTODO DE GOOGLE SIGN-IN COMPLETAMENTE REEMPLAZADO ---
   Future<void> signInWithGoogle() async {
-    const webClientId = 'TU_ID_DE_CLIENTE_WEB.apps.googleusercontent.com';
+    // El bundle ID de tu app. Reemplaza 'com.example.retosDiariosApp' si es diferente.
+    const appBundleId = 'com.example.retosDiariosApp';
 
-    final GoogleSignIn googleSignIn = GoogleSignIn(clientId: webClientId);
-    final googleUser = await googleSignIn.signIn();
-    final googleAuth = await googleUser!.authentication;
-    final accessToken = googleAuth.accessToken;
-    final idToken = googleAuth.idToken;
-
-    if (accessToken == null) {
-      throw 'No se pudo obtener el Access Token de Google.';
-    }
-    if (idToken == null) {
-      throw 'No se pudo obtener el ID Token de Google.';
-    }
-
-    await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: accessToken,
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      // redirectTo le dice a Supabase a dónde regresar después del login.
+      // Debe ser tu esquema de URL personalizado.
+      redirectTo: '$appBundleId://login-callback',
     );
   }
 
@@ -187,7 +174,6 @@ class ChallengeController with ChangeNotifier {
 
   Future<void> deleteInterest(String interest) async {
     if (_userProgress == null || _userProgress!.preferredChallengeTypes.length <= 1) return;
-    // --- ESTA ES LA LÍNEA CORREGIDA ---
     final newPrefs = Set<String>.from(_userProgress!.preferredChallengeTypes)..remove(interest);
     await updatePreferredTypes(newPrefs);
   }
